@@ -1,0 +1,63 @@
+project-name: "voxel-miner",
+supported-languages: "CXX C",
+entry-payload: {
+  platform: {
+    name: "voxel-miner",
+    width: 800,
+    height: 600,
+    vsync: "double",
+  },
+  gfx: {
+    initialize: true,
+    render-graph-path: "puldata/primary-render-graph.pds",
+    generate-window-depth-framebuffer: true,
+    shader-modules: [
+      {
+        label: "world",
+        vertex: "shaders/world.vert",
+        fragment: "shaders/world.frag",
+      },
+    ],
+  },
+  ecs: {
+    create-world: true,
+    register-components: true,
+    register-systems: true,
+    world-advance: true,
+  },
+},
+build-info: {
+  applications: [
+    "applications/editor.pds",
+    "applications/viewer.pds",
+  ],
+  plugins: [
+    {
+      name: "world",
+      path: "plugins/world",
+      source-language: "CXX",
+      known-files: [
+        "plugins/world/world.cpp",
+      ],
+      linked-libraries: [
+        "pulchritude-allocator",
+        "pulchritude-array",
+        "pulchritude-ecs",
+        "pulchritude-error",
+        "pulchritude-gfx",
+        "pulchritude-imgui",
+        "pulchritude-log",
+        "pulchritude-math",
+        "pulchritude-platform",
+        "pulchritude-plugin",
+        "pulchritude-stream",
+        "pulchritude-camera",
+        "pulchritude-time",
+        "pulchritude-asset-font",
+        "pulchritude-asset-image",
+        "pulchritude-asset-model",
+        "pulchritude-asset-shader-module",
+      ],
+    },
+  ],
+},
