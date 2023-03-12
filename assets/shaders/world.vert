@@ -47,21 +47,20 @@ vec3 cubeOriginForVertexID(int vId) {
 }
 
 void main() {
-  VoxelAttr attrib = voxel.attrs[gl_VertexID/36];
+  int cubeID = gl_VertexID/36;
+  VoxelAttr attrib = voxel.attrs[cubeID];
   const vec3 cubeVtxOrigin = (
     cubeOriginForVertexID(gl_VertexID)*0.5f
-    /* + vec3(attrib.x, attrib.y, attrib.z) */
     + vec3(attrib.origin.x, attrib.origin.y, attrib.origin.z)
   );
   const Camera cam = cameraSet.cameras[0];
   gl_Position = (cam.proj * cam.view) * vec4(cubeVtxOrigin, 1.0f);
-  /* int triangleID = int((3+attrib.w) * 25); */
-  int triangleID = int((3+(gl_VertexID/36)) * 25);
+  int colorID = int((3+(cubeID)) * 25);
   outUv = (
     vec3(
-      triangleID%2/20.0f,
-      triangleID%4/5.0f,
-      mod((triangleID+1), 3.3)/3.3f
+      colorID%2/20.0f,
+      colorID%4/5.0f,
+      mod((colorID+1), 3.3)/3.3f
     )
   );
 }

@@ -5,13 +5,6 @@
 
 #include <vector>
 
-#define SHADER(...) \
-  pul.cStr( \
-  "#version 460 core\n" \
-  "#extension GL_ARB_gpu_shader5 : require\n" \
-  #__VA_ARGS__ \
-  )
-
 namespace {
 PuleEngineLayer pul;
 } // namespace
@@ -27,8 +20,9 @@ struct {
 
   struct {
     PuleGfxCommandList commandList;
-    PuleAssetShaderModule shaderModule;
-    PuleGfxPipeline pipeline;
+    PuleGfxPipeline pipeline = { .id = 0, };
+    PuleAssetShaderModule assetShaderModule;
+    uint64_t shaderModuleId;
   } render;
 
   PuleCamera camera;
@@ -41,6 +35,38 @@ struct VoxelAttribute {
   PuleF32v3 origin;
   uint32_t type;
 };
+
+void initializePipeline() {
+  if (ctx.render.pipeline.id != 0) {
+    pul.gfxPipelineDestroy(ctx.render.pipeline);
+  }
+  auto descriptorSetLayout = pul.gfxPipelineDescriptorSetLayout();
+  auto shaderModule = (
+    pul.assetShaderModuleGfxHandle(ctx.render.assetShaderModule)
+  );
+
+  auto pipelineInfo = PuleGfxPipelineCreateInfo {
+    .shaderModule = shaderModule,
+    .layout = &descriptorSetLayout,
+    .config = {
+      .depthTestEnabled = true,
+      .blendEnabled = false,
+      .scissorTestEnabled = false,
+      .viewportUl = PuleI32v2 { 0, 0, },
+      .viewportLr = PuleI32v2 { 800, 600, },
+      .scissorUl = PuleI32v2 { 0, 0, },
+      .scissorLr = PuleI32v2 { 800, 600, },
+    },
+  };
+
+  PuleError err = puleError();
+  ctx.render.pipeline = pul.gfxPipelineCreate(&pipelineInfo, &err);
+  ctx.render.shaderModuleId = shaderModule.id;
+  puleLog("contex render pipeline: %d", ctx.render.pipeline);
+  if (pul.errorConsume(&err) > 0) {
+    return;
+  }
+}
 
 void initializeContext(
   PulePluginPayload const payload,
@@ -75,40 +101,17 @@ void initializeContext(
     )
   );
 
-  ctx.render.shaderModule.id = (
-    pul.pluginPayloadFetchU64(
+  ctx.render.assetShaderModule = {
+    .id = pul.pluginPayloadFetchU64(
       payload,
       puleCStr("pule-asset-shader-module-world")
-    )
-  );
+    ),
+  };
   ::pul = *reinterpret_cast<PuleEngineLayer *>(
     pul.pluginPayloadFetch(payload, puleCStr("pule-engine-layer"))
   );
   if (pul.errorConsume(&err)) { return; }
-
-  { // create pipeline
-    auto descriptorSetLayout = pul.gfxPipelineDescriptorSetLayout();
-
-    auto pipelineInfo = PuleGfxPipelineCreateInfo {
-      .shaderModule = puleAssetShaderModuleGfxHandle(ctx.render.shaderModule),
-      .layout = &descriptorSetLayout,
-      .config = {
-        .depthTestEnabled = true,
-        .blendEnabled = false,
-        .scissorTestEnabled = false,
-        .viewportUl = PuleI32v2 { 0, 0, },
-        .viewportLr = PuleI32v2 { 800, 600, },
-        .scissorUl = PuleI32v2 { 0, 0, },
-        .scissorLr = PuleI32v2 { 800, 600, },
-      },
-    };
-
-    ctx.render.pipeline = pul.gfxPipelineCreate(&pipelineInfo, &err);
-    puleLog("contex render pipeline: %d", ctx.render.pipeline);
-    if (pul.errorConsume(&err) > 0) {
-      return;
-    }
-  }
+  initializePipeline();
 }
 
 } // namespace
@@ -134,6 +137,13 @@ void pulcComponentUpdate(PulePluginPayload const payload) {
   // update camera [ TODO move to application ]
   puleCameraControllerPollEvents();
   puleCameraSetRefresh(ctx.cameraSet);
+
+  if (
+    ctx.render.shaderModuleId
+    != pul.assetShaderModuleGfxHandle(ctx.render.assetShaderModule).id
+  ) {
+    initializePipeline();
+  }
 
   // append our task
   auto const taskGraph = PuleTaskGraph {
